@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RevenuePilot - AI Marketing Forecasting Platform</title>
+  
+  <!-- CDNs for Styles, Tailwind, Lucide, Marked, and Charts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css?v=4.0">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <script>
+    // Tailwind Config for SaaS Colors and Typography
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            dark: {
+              bg: '#0A0F1C',
+              card: 'rgba(18, 24, 38, 0.65)',
+              border: 'rgba(255, 255, 255, 0.08)'
+            },
+            brand: {
+              blue: '#E2A039',
+              purple: '#0D9488',
+              cyan: '#E07A5F'
+            }
+          },
+          fontFamily: {
+            sans: ['Space Grotesk', 'DM Sans', 'sans-serif']
+          }
+        }
+      }
+    };
+
+    // Global visual error tracker to catch silent bugs
+    window.onerror = function(message, source, lineno, colno, error) {
+      const errorDiv = document.createElement('div');
+      errorDiv.className = "fixed top-0 left-0 w-full bg-red-600 text-white p-4 text-sm font-bold z-[999999] shadow-lg flex flex-col gap-1";
+      errorDiv.innerHTML = `<div>⚠️ Error: ${message}</div><div class="text-xs font-normal opacity-85">${source}:${lineno}:${colno}</div>` + (error ? `<pre class="text-[10px] font-mono mt-1 bg-red-700/40 p-2 rounded max-h-40 overflow-y-auto">${error.stack}</pre>` : '');
+      document.body.appendChild(errorDiv);
+      return false;
+    };
+    window.onunhandledrejection = function(event) {
+      const errorDiv = document.createElement('div');
+      errorDiv.className = "fixed top-0 left-0 w-full bg-amber-600 text-white p-4 text-sm font-bold z-[999999] shadow-lg flex flex-col gap-1";
+      errorDiv.innerHTML = `<div>⚠️ Unhandled Rejection: ${event.reason}</div>` + (event.reason && event.reason.stack ? `<pre class="text-[10px] font-mono mt-1 bg-amber-700/40 p-2 rounded max-h-40 overflow-y-auto">${event.reason.stack}</pre>` : '');
+      document.body.appendChild(errorDiv);
+    };
+  </script>
+</head>
+<body class="h-full bg-dark-bg text-slate-100 flex flex-col antialiased">
+
+
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loadingText" class="loading-text">Simulating Monte Carlo Projections...</div>
+    <div class="w-48 h-1 bg-white/5 rounded-full overflow-hidden mt-3">
+      <div id="loadingProgressBar" class="h-full bg-gradient-to-r from-brand-blue to-brand-purple w-0 transition-all duration-200"></div>
+    </div>
+  </div>
+
+  <!-- Top Sticky Navigation Bar -->
+  <header class="sticky top-0 z-50 w-full border-b border-white/5 bg-slate-950/60 backdrop-blur-xl transition-all duration-300">
+    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      
+      <!-- Logo Container -->
+      <div class="flex items-center gap-3 cursor-pointer group" onclick="switchTab('overviewTab')">
+        <div class="relative flex items-center justify-center w-9 h-9 rounded-xl overflow-hidden shadow-lg shadow-brand-blue/20 transition-transform group-hover:scale-105">
+          <img src="assets/logo.png" alt="RevenuePilot" class="w-full h-full object-cover" />
+        </div>
+        <span class="text-lg font-extrabold tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">RevenuePilot</span>
+      </div>
+
+      <!-- Navigation Tabs (Frosted Pills) -->
+      <nav id="topNav" class="hidden md:flex items-center bg-white/5 border border-white/10 rounded-full p-1 gap-1 relative z-10">
+        <button class="top-nav-tab tab-btn px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-white" data-tab="overviewTab" id="navOverview">Dashboard</button>
+        <button class="top-nav-tab tab-btn px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-white" data-tab="forecastTab" id="navForecast">Forecasts</button>
+        <button class="top-nav-tab tab-btn px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-white" data-tab="scenarioTab" id="navScenario">Simulations</button>
+        <button class="top-nav-tab tab-btn px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-white" data-tab="reportsTab" id="navReports">Reports</button>
+        <button class="top-nav-tab tab-btn px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 text-slate-400 hover:text-white" data-tab="diagnosticsTab" id="navValidation">Data Sources</button>
+        <!-- Animated Active Indicator Background -->
+        <div id="navIndicator" class="absolute bg-brand-blue/20 border border-brand-blue/30 rounded-full z-[-1] transition-all duration-300 ease-out pointer-events-none"></div>
+      </nav>
+
+      <!-- Global Search Bar -->
+      <div class="relative hidden lg:flex items-center max-w-[200px] w-full">
+        <div class="relative flex items-center bg-white/5 border border-white/5 focus-within:border-brand-blue/30 rounded-xl px-3 py-1.5 transition-all w-full">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 flex-shrink-0"></i>
+          <input type="text" id="visibleSearchInput" placeholder="Global search..." class="bg-transparent border-none outline-none text-xs text-white pl-2 w-full focus-ring-glow">
+        </div>
+        <!-- Global Search Results Panel -->
+        <div id="globalSearchResults" class="absolute right-0 top-11 w-80 glass-panel border border-white/10 rounded-xl shadow-2xl p-4 hidden flex-col gap-2 z-[100] max-h-80 overflow-y-auto">
+          <!-- Dynamically populated matches -->
+        </div>
+      </div>
+
+      <!-- Right Header Actions -->
+      <div class="flex items-center gap-4">
+        
+        <!-- Horizon Select (Frosted Segment Toggle) -->
+        <div class="flex bg-white/5 border border-white/5 rounded-lg p-0.5" id="planningPeriodToggle">
+          <button class="horizon-btn px-3 py-1 text-[11px] font-bold rounded-md text-slate-400 hover:text-white transition-all active" data-value="30">30D</button>
+          <button class="horizon-btn px-3 py-1 text-[11px] font-bold rounded-md text-slate-400 hover:text-white transition-all" data-value="60">60D</button>
+          <button class="horizon-btn px-3 py-1 text-[11px] font-bold rounded-md text-slate-400 hover:text-white transition-all" data-value="90">90D</button>
+        </div>
+
+        <select id="planningPeriodSelect" class="hidden">
+          <option value="30" selected>30 Days</option>
+          <option value="60">60 Days</option>
+          <option value="90">90 Days</option>
+        </select>
+
+        <!-- Theme Toggle -->
+        <button class="w-8 h-8 rounded-lg flex items-center justify-center border border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/10 transition-all focus-ring-glow" id="themeToggleBtn" title="Toggle Theme" aria-label="Toggle Theme">
+          <i data-lucide="moon" class="w-4 h-4 text-slate-300"></i>
+        </button>
+
+        <!-- Notifications -->
+        <div class="relative">
+          <button class="w-8 h-8 rounded-lg flex items-center justify-center border border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/10 transition-all relative focus-ring-glow" id="notificationBellBtn" title="Notifications">
+            <i data-lucide="bell" class="w-4 h-4 text-slate-300"></i>
+            <span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-brand-blue rounded-full hidden" id="notificationBadge"></span>
+          </button>
+          <!-- Dropdown Panel -->
+          <div id="notificationsPanel" class="absolute right-0 mt-2 w-80 glass-panel border border-white/10 rounded-xl shadow-2xl p-4 hidden flex-col gap-3 z-[100] scale-95 origin-top-right transition-all duration-200">
+            <div class="flex items-center justify-between pb-2 border-b border-white/5">
+              <span class="text-xs font-bold text-slate-200">Notifications</span>
+              <button id="clearNotificationsBtn" class="text-[10px] font-bold text-slate-500 hover:text-slate-300 transition-colors">Clear All</button>
+            </div>
+            <div id="notificationsContainer" class="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings Button -->
+        <button class="w-8 h-8 rounded-lg flex items-center justify-center border border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/10 transition-all focus-ring-glow" id="openSettingsBtn" title="App Configurations">
+          <i data-lucide="settings" class="w-4 h-4 text-slate-300"></i>
+        </button>
+
+        <!-- Profile Avatar -->
+        <div class="flex items-center gap-2 pl-2 border-l border-white/10">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-blue to-brand-purple flex items-center justify-center text-xs font-bold text-white uppercase ring-1 ring-white/10">R</div>
+          <span class="hidden lg:inline text-xs font-semibold text-slate-300">Admin</span>
+        </div>
+
+        <!-- Hidden backward compatibility assets -->
+        <div class="hidden">
+          <input type="text" id="globalSearchInput" />
+          <span id="sidebarStatusText">Unloaded</span>
+          <div id="sidebarStatusPill"></div>
+          <button id="headerRefreshBtn"></button>
+          <div id="datasetStatus"><span id="statusIconContainer"></span><span id="statusText"></span></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl mx-auto w-full px-6 py-8 relative">
+
+    <!-- EMPTY / INITIAL HERO STATE -->
+    <div id="emptyStateContainer" class="flex flex-col gap-16 min-h-[82vh] justify-center blur-fade">
+      
+      <!-- Split Hero layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        
+        <!-- Left: Text & Action triggers -->
+        <div class="lg:col-span-6 flex flex-col gap-6">
+          <div class="inline-flex items-center gap-2 bg-brand-blue/10 border border-brand-blue/30 rounded-full px-4 py-1.5 w-fit animate-fade-up stagger-1">
+            <i data-lucide="sparkles" class="w-4 h-4 text-brand-blue animate-pulse"></i>
+            <span class="text-[10px] font-extrabold tracking-widest text-brand-blue uppercase">AI-POWERED PREDICTIVE SIMULATOR</span>
+          </div>
+
+          <h1 class="text-5xl lg:text-6xl font-black tracking-tight leading-none animate-fade-up stagger-2">
+            RevenuePilot
+          </h1>
+          <h2 class="text-2xl lg:text-3xl font-extrabold text-brand-blue animate-fade-up stagger-3">
+            AI Marketing Forecasting Platform
+          </h2>
+          <p class="text-lg font-bold text-slate-300 animate-fade-up stagger-4">
+            Forecast Every Marketing Rupee.
+          </p>
+          <p class="text-sm text-slate-400 leading-relaxed max-w-lg animate-fade-up stagger-5">
+            Deploy machine learning and probabilistic simulation models to optimize campaign budgets across Google, Meta, and Microsoft Ads. Anticipate revenue horizons, trace saturation limits, and detect anomalies.
+          </p>
+
+          <div class="flex flex-wrap gap-3 mt-4 animate-fade-up stagger-6">
+            <button onclick="document.getElementById('navForecast').click()" class="px-5 py-3 rounded-xl text-xs font-bold bg-white/5 border border-white/10 hover:bg-white/10 transition-all flex items-center gap-2">
+              <i data-lucide="trending-up" class="w-4 h-4 text-brand-blue"></i> AI Forecasting
+            </button>
+            <button onclick="document.getElementById('navScenario').click()" class="px-5 py-3 rounded-xl text-xs font-bold bg-white/5 border border-white/10 hover:bg-white/10 transition-all flex items-center gap-2">
+              <i data-lucide="sliders" class="w-4 h-4 text-brand-purple"></i> Monte Carlo Simulation
+            </button>
+            <button onclick="document.getElementById('navScenario').click()" class="px-5 py-3 rounded-xl text-xs font-bold bg-white/5 border border-white/10 hover:bg-white/10 transition-all flex items-center gap-2">
+              <i data-lucide="activity" class="w-4 h-4 text-brand-cyan"></i> Scenario Planning
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: Premium Forecast Visualization -->
+        <div class="lg:col-span-6 relative flex items-center justify-center">
+          <!-- Ambient glow behind card -->
+          <div class="absolute w-72 h-72 bg-brand-blue/10 rounded-full blur-[100px] -top-10 -right-10 pointer-events-none"></div>
+          <div class="absolute w-56 h-56 bg-brand-purple/10 rounded-full blur-[80px] -bottom-10 -left-10 pointer-events-none"></div>
+
+          <div class="w-full max-w-xl aspect-[5/3] glass-panel rounded-2xl border border-white/10 shadow-2xl relative overflow-hidden p-5 flex flex-col gap-3 animate-fade-up stagger-5 animate-float">
+            <!-- Card header -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-brand-purple animate-pulse"></div>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Revenue Forecast — 90 Day</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] font-extrabold text-brand-purple">+24.6%</span>
+                <i data-lucide="trending-up" class="w-3 h-3 text-brand-purple"></i>
+              </div>
+            </div>
+
+            <!-- SVG Chart -->
+            <svg class="w-full flex-1" viewBox="0 0 500 250" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="hero-fill" x1="0" y1="80" x2="0" y2="230" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#E2A039" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="#E2A039" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="hero-forecast-fill" x1="0" y1="40" x2="0" y2="230" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#0D9488" stop-opacity="0.2"/>
+                  <stop offset="100%" stop-color="#0D9488" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="hero-line-grad" x1="0" y1="0" x2="500" y2="0" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#E2A039"/>
+                  <stop offset="60%" stop-color="#E2A039"/>
+                  <stop offset="100%" stop-color="#0D9488"/>
+                </linearGradient>
+                <filter id="hero-glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="6" result="blur"/>
+                  <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+                </filter>
+              </defs>
+
+              <!-- Horizontal grid lines -->
+              <g stroke="rgba(255,255,255,0.04)" stroke-width="1">
+                <line x1="40" y1="50" x2="480" y2="50"/>
+                <line x1="40" y1="100" x2="480" y2="100"/>
+                <line x1="40" y1="150" x2="480" y2="150"/>
+                <line x1="40" y1="200" x2="480" y2="200"/>
+              </g>
+
+              <!-- Y-axis labels -->
+              <g fill="rgba(148,163,184,0.5)" font-size="8" font-family="JetBrains Mono, monospace">
+                <text x="30" y="53" text-anchor="end">₹40L</text>
+                <text x="30" y="103" text-anchor="end">₹30L</text>
+                <text x="30" y="153" text-anchor="end">₹20L</text>
+                <text x="30" y="203" text-anchor="end">₹10L</text>
+              </g>
+
+              <!-- X-axis labels -->
+              <g fill="rgba(148,163,184,0.4)" font-size="7" font-family="Space Grotesk, sans-serif" text-anchor="middle">
+                <text x="60" y="235">Jan</text>
+                <text x="130" y="235">Feb</text>
+                <text x="200" y="235">Mar</text>
+                <text x="270" y="235">Apr</text>
+                <text x="340" y="235">May</text>
+                <text x="410" y="235">Jun</text>
+                <text x="460" y="235">Jul</text>
+              </g>
+
+              <!-- Forecast divider line -->
+              <line x1="310" y1="30" x2="310" y2="225" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-dasharray="3 3"/>
+              <text x="310" y="24" fill="rgba(148,163,184,0.4)" font-size="7" font-family="Space Grotesk, sans-serif" text-anchor="middle">Forecast →</text>
+
+              <!-- Confidence band (upper + lower merged fill) -->
+              <path d="M310 115 C340 100, 380 70, 420 55 C445 45, 460 38, 475 30
+                       L475 120 C460 100, 445 95, 420 90 C380 100, 340 115, 310 125 Z"
+                    fill="rgba(13,148,136,0.08)"/>
+              <!-- Upper confidence line -->
+              <path d="M310 115 C340 100, 380 70, 420 55 C445 45, 460 38, 475 30"
+                    fill="none" stroke="#0D9488" stroke-width="1" stroke-dasharray="4 3" opacity="0.35"/>
+              <!-- Lower confidence line -->
+              <path d="M310 125 C340 115, 380 100, 420 90 C445 95, 460 100, 475 120"
+                    fill="none" stroke="#0D9488" stroke-width="1" stroke-dasharray="4 3" opacity="0.35"/>
+
+              <!-- Actuals area fill -->
+              <path d="M60 190 C90 185, 110 175, 140 168 C170 172, 190 160, 220 145 C250 138, 270 135, 310 120 L310 225 L60 225 Z"
+                    fill="url(#hero-fill)"/>
+
+              <!-- Forecast area fill -->
+              <path d="M310 120 C340 108, 380 85, 420 72 C445 65, 460 60, 475 50 L475 225 L310 225 Z"
+                    fill="url(#hero-forecast-fill)"/>
+
+              <!-- Main trend line (actuals) -->
+              <path d="M60 190 C90 185, 110 175, 140 168 C170 172, 190 160, 220 145 C250 138, 270 135, 310 120"
+                    fill="none" stroke="#E2A039" stroke-width="2.5" stroke-linecap="round" filter="url(#hero-glow)"/>
+
+              <!-- Main trend line (forecast) -->
+              <path d="M310 120 C340 108, 380 85, 420 72 C445 65, 460 60, 475 50"
+                    fill="none" stroke="url(#hero-line-grad)" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="6 3" filter="url(#hero-glow)"/>
+
+              <!-- Data points on actuals -->
+              <circle cx="140" cy="168" r="3" fill="#E2A039" stroke="#0F172A" stroke-width="1.5"/>
+              <circle cx="220" cy="145" r="3" fill="#E2A039" stroke="#0F172A" stroke-width="1.5"/>
+              <circle cx="310" cy="120" r="4" fill="#E2A039" stroke="#ffffff" stroke-width="2"/>
+
+              <!-- Animated pulse on latest point -->
+              <circle cx="310" cy="120" r="4" fill="none" stroke="#E2A039" stroke-width="1.5" opacity="0.6">
+                <animate attributeName="r" values="4;12;4" dur="2s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.6;0;0.6" dur="2s" repeatCount="indefinite"/>
+              </circle>
+
+              <!-- Forecast endpoint -->
+              <circle cx="475" cy="50" r="3" fill="#0D9488" stroke="#ffffff" stroke-width="1.5"/>
+            </svg>
+
+            <!-- Bottom stats row -->
+            <div class="flex items-center justify-between border-t border-white/5 pt-2.5">
+              <div class="flex flex-col">
+                <span class="text-[9px] text-slate-500 uppercase font-semibold">Projected Revenue</span>
+                <span class="text-sm font-black text-white">₹38.4L</span>
+              </div>
+              <div class="flex flex-col items-center">
+                <span class="text-[9px] text-slate-500 uppercase font-semibold">Confidence</span>
+                <span class="text-sm font-black text-brand-purple">92%</span>
+              </div>
+              <div class="flex flex-col items-end">
+                <span class="text-[9px] text-slate-500 uppercase font-semibold">ROAS Target</span>
+                <span class="text-sm font-black text-brand-cyan">4.2x</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Redesigned File Upload Zone -->
+      <div id="dropZone" class="max-w-xl mx-auto w-full glass-panel border border-white/10 rounded-2xl p-8 relative flex flex-col items-center text-center gap-6 shadow-xl shine-hover border-beam-card transition-all duration-300 reveal">
+        
+        <!-- Default State -->
+        <div id="dropZoneDefault" class="flex flex-col items-center gap-6 w-full">
+          <div class="w-12 h-12 rounded-xl bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center">
+            <i data-lucide="upload-cloud" class="w-6 h-6 text-brand-blue" id="uploadIcon"></i>
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <h2 class="font-extrabold text-base text-slate-200">Your Data Canvas Awaits</h2>
+            <p class="text-xs text-slate-400 max-w-sm">Drop your campaign CSV here and let the forecasting engine do its magic.</p>
+          </div>
+
+          <div class="relative w-full">
+            <input type="file" id="csvFileInput" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept=".csv" aria-label="Upload CSV file">
+            <div class="w-full border-2 border-dashed border-white/10 hover:border-brand-blue/30 rounded-xl py-8 px-4 flex flex-col items-center justify-center gap-2 bg-white/5 transition-colors cursor-pointer">
+              <span class="text-xs font-bold text-brand-blue">Drag & drop files or browse computer</span>
+              <span class="text-[10px] text-slate-500 uppercase font-semibold">Max size: 10MB</span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-4 w-full">
+            <div class="h-[1px] bg-white/5 flex-1"></div>
+            <span class="text-[10px] font-bold text-slate-500 uppercase">Or take a test flight</span>
+            <div class="h-[1px] bg-white/5 flex-1"></div>
+          </div>
+
+          <button id="emptyLoadDemoBtn" class="w-full py-3 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-brand-blue to-brand-purple hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-blue/20 focus-ring-glow">
+            <i data-lucide="database" class="w-4 h-4"></i> Load E-Commerce Demo
+          </button>
+        </div>
+
+        <!-- Progress State -->
+        <div id="dropZoneProgress" class="hidden flex-col items-center gap-4 w-full py-6">
+          <div class="w-12 h-12 rounded-full border-4 border-slate-700 border-t-brand-blue animate-spin"></div>
+          <div class="flex flex-col gap-1">
+            <span class="text-xs font-bold text-slate-200" id="uploadProgressText">Herding data pixels...</span>
+            <div class="w-48 h-1 bg-white/5 rounded-full overflow-hidden mt-2">
+              <div id="uploadProgressBar" class="h-full bg-brand-blue w-0 transition-all duration-200"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Success State -->
+        <div id="dropZoneSuccess" class="hidden flex-col items-center gap-4 w-full py-4">
+          <div class="w-12 h-12 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-500">
+            <i data-lucide="check-circle" class="w-6 h-6"></i>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="text-xs font-bold text-slate-200">Data Uploaded!</span>
+            <span class="text-[11px] text-slate-400" id="successDetails">Your forecasting engine is primed and ready.</span>
+          </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="dropZoneError" class="hidden flex-col items-center gap-4 w-full py-4">
+          <div class="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
+            <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="text-xs font-bold text-slate-200">Validation Failed</span>
+            <span class="text-[11px] text-red-400 max-w-sm" id="errorDetails">Invalid schema or format.</span>
+          </div>
+          <button id="retryUploadBtn" class="px-4 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-slate-300">Try Again</button>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Hidden inputs label for fallback bindings -->
+    <span id="fileNameLabel" class="hidden"></span>
+
+    <!-- MAIN DASHBOARD CONTENT (Reveals when data loaded) -->
+    <div id="dashboardViews" class="flex flex-col gap-10">
+
+      <!-- 1. OVERVIEW TAB PANEL -->
+      <div id="overviewTab" class="tab-pane active flex flex-col gap-10">
+        
+        <!-- Shimmer Skeleton KPI Grid (Shown during calculations) -->
+        <div id="kpiSkeletonGrid" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div class="glass-panel rounded-2xl p-6 flex flex-col gap-4 relative shimmer min-h-[120px]">
+            <div class="h-4 bg-white/5 rounded w-1/3"></div>
+            <div class="h-8 bg-white/5 rounded w-2/3 mt-2"></div>
+            <div class="h-3 bg-white/5 rounded w-1/2"></div>
+          </div>
+          <div class="glass-panel rounded-2xl p-6 flex flex-col gap-4 relative shimmer min-h-[120px]">
+            <div class="h-4 bg-white/5 rounded w-1/3"></div>
+            <div class="h-8 bg-white/5 rounded w-2/3 mt-2"></div>
+            <div class="h-3 bg-white/5 rounded w-1/2"></div>
+          </div>
+          <div class="glass-panel rounded-2xl p-6 flex flex-col gap-4 relative shimmer min-h-[120px]">
+            <div class="h-4 bg-white/5 rounded w-1/3"></div>
+            <div class="h-8 bg-white/5 rounded w-2/3 mt-2"></div>
+            <div class="h-3 bg-white/5 rounded w-1/2"></div>
+          </div>
+          <div class="glass-panel rounded-2xl p-6 flex flex-col gap-4 relative shimmer min-h-[120px]">
+            <div class="h-4 bg-white/5 rounded w-1/3"></div>
+            <div class="h-8 bg-white/5 rounded w-2/3 mt-2"></div>
+            <div class="h-3 bg-white/5 rounded w-1/2"></div>
+          </div>
+        </div>
+
+        <!-- Redesigned KPI Grid -->
+        <div id="kpiRealGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          
+          <!-- Spend Card -->
+          <div class="glass-panel border-beam-card rounded-2xl p-6 flex flex-col gap-3 relative hover:scale-[1.01] transition-transform reveal">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Planned Spend</span>
+              <div class="w-8 h-8 rounded-lg bg-brand-blue/10 flex items-center justify-center">
+                <i data-lucide="wallet" class="w-4 h-4 text-brand-blue"></i>
+              </div>
+            </div>
+            <div class="flex flex-col gap-1">
+              <span class="text-2xl font-black tracking-tight" id="statTotalSpend">₹0</span>
+              <span class="text-xs text-slate-400">Horizon Budget Allocation</span>
+            </div>
+          </div>
+
+          <!-- Revenue Card -->
+          <div class="glass-panel border-beam-card rounded-2xl p-6 flex flex-col gap-3 relative hover:scale-[1.01] transition-transform reveal">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Expected Revenue</span>
+              <div class="w-8 h-8 rounded-lg bg-brand-purple/10 flex items-center justify-center">
+                <i data-lucide="trending-up" class="w-4 h-4 text-brand-purple"></i>
+              </div>
+            </div>
+            <div class="flex flex-col gap-1">
+              <div class="flex items-baseline justify-between">
+                <span class="text-2xl font-black tracking-tight" id="statExpectedRevenue">₹0</span>
+                <span id="statRevenueTrend" class="trend-badge"></span>
+              </div>
+              <span class="text-[11px] text-slate-400" id="statRevenueRange">₹0 - ₹0</span>
+            </div>
+          </div>
+
+          <!-- ROAS Card -->
+          <div class="glass-panel border-beam-card rounded-2xl p-6 flex flex-col gap-3 relative hover:scale-[1.01] transition-transform reveal">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Blended ROAS</span>
+              <div class="w-8 h-8 rounded-lg bg-brand-cyan/10 flex items-center justify-center">
+                <i data-lucide="zap" class="w-4 h-4 text-brand-cyan"></i>
+              </div>
+            </div>
+            <div class="flex flex-col gap-1">
+              <div class="flex items-baseline justify-between">
+                <span class="text-2xl font-black tracking-tight" id="statExpectedRoas">0.00x</span>
+                <span id="statRoasTrend" class="trend-badge"></span>
+              </div>
+              <span class="text-[11px] text-slate-400" id="statRoasRange">0.00x - 0.00x</span>
+            </div>
+          </div>
+
+          <!-- Seasonality Card -->
+          <div class="glass-panel border-beam-card rounded-2xl p-6 flex flex-col gap-3 relative hover:scale-[1.01] transition-transform reveal">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Seasonality</span>
+              <span id="statSeasonalityBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase">Neutral</span>
+            </div>
+            <div class="flex flex-col gap-1">
+              <span class="text-2xl font-black tracking-tight" id="statSeasonality">1.00x</span>
+              <span class="text-xs text-slate-400" id="statSeasonalityText">Baseline seasonality index</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Overview Dashboard Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          <!-- Column Left: Chart Card -->
+          <div class="lg:col-span-8 glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-6 shadow-xl relative">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i data-lucide="activity" class="w-5 h-5 text-brand-blue"></i>
+                <h2 class="font-extrabold text-base text-slate-200" id="chartCardTitle">Forecast Timeline</h2>
+              </div>
+              
+              <div class="flex items-center gap-4">
+                <!-- Toggle View Option -->
+                <button id="toggleChartViewBtn" class="text-xs font-bold text-brand-blue hover:underline bg-transparent border-none flex items-center gap-1">
+                  <i data-lucide="line-chart" class="w-3.5 h-3.5"></i> View Timeline Drill-down
+                </button>
+              </div>
+            </div>
+
+            <!-- Chart Canvas wrapper -->
+            <div class="relative w-full h-[360px] min-h-[300px]">
+              <canvas id="forecastChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Column Right: Distribution Breakdown and Quick Upload -->
+          <div class="lg:col-span-4 flex flex-col gap-8">
+            
+            <!-- Ingestion diagnostics summary quick widget -->
+            <div class="glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-4 shadow-xl">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="activity" class="w-5 h-5 text-brand-cyan"></i>
+                  <h3 class="font-extrabold text-sm text-slate-200">Data Source Health</h3>
+                </div>
+                <span class="text-xs font-bold text-brand-cyan" id="validationScoreValue">0%</span>
+              </div>
+              <div class="w-full bg-white/5 h-2 rounded-full overflow-hidden">
+                <div class="bg-gradient-to-r from-brand-blue to-brand-cyan h-full rounded-full transition-all duration-500" id="validationProgressFill" style="width:0%;"></div>
+              </div>
+              <button onclick="switchTab('diagnosticsTab')" class="w-full py-2.5 rounded-xl border border-white/5 hover:bg-white/5 text-xs font-bold text-slate-300 transition-colors flex items-center justify-center gap-2">
+                <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i> Review Diagnostics
+              </button>
+            </div>
+
+            <!-- Saturation Donut Card -->
+            <div class="glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-4 shadow-xl">
+              <div class="flex items-center gap-2">
+                <i data-lucide="pie-chart" class="w-5 h-5 text-brand-purple"></i>
+                <h3 class="font-extrabold text-sm text-slate-200">Revenue Contribution</h3>
+              </div>
+              <div class="relative w-full h-[180px] flex items-center justify-center">
+                <canvas id="contributionChart"></canvas>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- AI Advisory Takeaways Panel -->
+        <div id="aiSummaryHighlightGrid" class="grid grid-cols-1 md:grid-cols-3 gap-6 shadow-sm" style="display:none;">
+          <div class="glass-panel rounded-2xl p-5 border border-white/5 flex items-start gap-4">
+            <div class="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="trending-up" class="w-4 h-4 text-emerald-400"></i>
+            </div>
+            <div class="flex flex-col gap-1">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Growth Outlook</span>
+                <span id="insightRevBadge" class="ai-insight-tag"></span>
+              </div>
+              <span id="insightRevValue" class="text-sm font-bold text-slate-200">Evaluating...</span>
+            </div>
+          </div>
+
+          <div class="glass-panel rounded-2xl p-5 border border-white/5 flex items-start gap-4">
+            <div class="w-9 h-9 rounded-lg bg-brand-blue/10 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="award" class="w-4 h-4 text-brand-blue"></i>
+            </div>
+            <div class="flex flex-col gap-1">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Top Performing channel</span>
+              <span id="insightBestChan" class="text-sm font-bold text-slate-200">Google Ads</span>
+            </div>
+          </div>
+
+          <div class="glass-panel rounded-2xl p-5 border border-white/5 flex items-start gap-4">
+            <div class="w-9 h-9 rounded-lg bg-rose-500/10 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="shield-alert" class="w-4 h-4 text-rose-400"></i>
+            </div>
+            <div class="flex flex-col gap-1">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Integrity Risks</span>
+                <span id="insightRiskBadge" class="ai-insight-tag"></span>
+              </div>
+              <span id="insightRiskValue" class="text-sm font-bold text-slate-200">0 anomalies</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Budget Forecasts Tables Area -->
+        <div class="glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-6 shadow-xl">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+              <i data-lucide="table" class="w-5 h-5 text-brand-blue"></i>
+              <h2 class="font-extrabold text-base text-slate-200">Marketing Spend & Revenue Allocations</h2>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <button class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-white/5 border border-white/5 hover:bg-white/10" onclick="switchTab('reportsTab')">
+                <i data-lucide="file-text" class="inline w-3.5 h-3.5 mr-1"></i> Full Report
+              </button>
+            </div>
+          </div>
+
+          <!-- Table Container -->
+          <div class="overflow-x-auto rounded-xl border border-white/5">
+            <table class="min-w-full divide-y divide-white/5 text-sm text-left">
+              <thead class="bg-white/5 font-bold text-xs uppercase tracking-wider text-slate-400">
+                <tr>
+                  <th scope="col" class="px-6 py-3.5">Channel Segment</th>
+                  <th scope="col" class="px-6 py-3.5">Allocated Budget</th>
+                  <th scope="col" class="px-6 py-3.5">Expected ROAS (P50)</th>
+                  <th scope="col" class="px-6 py-3.5">Expected Revenue (P50)</th>
+                  <th scope="col" class="px-6 py-3.5">Pessimistic Scenario (P10)</th>
+                  <th scope="col" class="px-6 py-3.5">Optimistic Scenario (P90)</th>
+                </tr>
+              </thead>
+              <tbody id="overviewTableBody" class="divide-y divide-white/5 bg-slate-900/10">
+                <tr>
+                  <td colspan="6" class="px-6 py-8 text-center text-slate-400">Please execute forecast modeling first.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Causal Explanations Layer -->
+        <div class="glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-4 shadow-xl">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-5 h-5 text-brand-cyan"></i>
+              <h2 class="font-extrabold text-base text-slate-200">Causal AI Insights & Advisory</h2>
+            </div>
+            <button onclick="switchTab('reportsTab')" class="text-xs font-bold text-brand-blue hover:underline bg-transparent border-none flex items-center gap-1">
+              Interactive Advisor <i data-lucide="chevron-right" class="w-3 h-3"></i>
+            </button>
+          </div>
+
+          <div id="aiKeyWarning" class="warning-box" style="display:none;">
+            <i data-lucide="alert-circle"></i>
+            <div>
+              <strong>Gemini API Key missing:</strong> Running rules-based local growth heuristic framework. Navigate to <button onclick="switchTab('settingsTab')" class="underline hover:text-white font-semibold">Settings</button> to configure an API Key for advanced insights.
+            </div>
+          </div>
+
+          <!-- Insights Output wrapper -->
+          <div class="ai-report-box bg-slate-950/40 border border-white/5 rounded-xl p-6 min-h-[120px]" id="aiReportContent">
+            Advisory insights will appear here once the forecast runs successfully.
+          </div>
+        </div>
+
+      </div> <!-- End overviewTab -->
+
+
+      <!-- 2. FORECAST DRILL-DOWN PANEL -->
+      <div id="forecastTab" class="tab-pane flex flex-col gap-8">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-black text-slate-100">Forecast Drill-down</h1>
+            <p class="text-xs text-slate-400">Detailed line models and campaign performance metrics</p>
+          </div>
+          
+          <button id="toggleChartViewBtnOverview" onclick="document.getElementById('navOverview').click()" class="px-4 py-2 rounded-xl text-xs font-extrabold border border-white/5 hover:bg-white/5 transition-all flex items-center gap-2 text-slate-300">
+            <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to Dashboard
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          <!-- Column left: Large Daily Timeline Graph -->
+          <div class="lg:col-span-8 glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-6 shadow-xl relative">
+            <div class="flex items-center gap-2">
+              <i data-lucide="activity" class="w-5 h-5 text-brand-blue"></i>
+              <h2 class="font-extrabold text-sm text-slate-200">Daily Historical & Forecast Timeline</h2>
+            </div>
+            
+            <div class="relative w-full h-[400px] min-h-[300px]">
+              <canvas id="forecastDailyChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Column right: ROAS comparison ranges -->
+          <div class="lg:col-span-4 glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-4 shadow-xl">
+            <div class="flex items-center gap-2">
+              <i data-lucide="bar-chart-2" class="w-5 h-5 text-brand-cyan"></i>
+              <h2 class="font-extrabold text-sm text-slate-200">Channel ROAS Boundaries</h2>
+            </div>
+            <div class="relative w-full h-[360px] flex items-center justify-center">
+              <canvas id="roasChart"></canvas>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Granular Campaigns breakdowns -->
+        <div class="glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-6 shadow-xl">
+          
+          <!-- Segment level selectors -->
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/5">
+            <div class="flex items-center bg-white/5 border border-white/5 rounded-lg p-0.5">
+              <button id="toggleLevelChannel" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-white transition-all active">Channels</button>
+              <button id="toggleLevelType" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-white transition-all">Campaign Types</button>
+              <button id="toggleLevelCampaign" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-400 hover:text-white transition-all">Campaigns</button>
+            </div>
+
+            <!-- Sort and Search triggers -->
+            <div class="flex flex-wrap items-center gap-3">
+              <div class="relative min-w-[200px]">
+                <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-3 top-2.5"></i>
+                <input type="text" id="tableSearchInput" placeholder="Filter segments..." class="w-full bg-white/5 border border-white/5 hover:border-white/10 focus:border-brand-blue/30 focus:bg-white/10 rounded-lg pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 outline-none transition-all">
+              </div>
+
+              <select id="campaignSortSelect" class="bg-white/5 border border-white/5 rounded-lg px-3 py-2 text-xs text-slate-300 outline-none hover:bg-white/10 focus:border-brand-blue/30 transition-all cursor-pointer">
+                <option value="budget-desc">Sort by Spend (High to Low)</option>
+                <option value="budget-asc">Sort by Spend (Low to High)</option>
+                <option value="revenue-desc">Sort by Revenue (High to Low)</option>
+                <option value="roas-desc">Sort by ROAS (High to Low)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Campaigns display grids wrapper (app.js populates here) -->
+          <div id="breakdownTableBody" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="col-span-full py-12 text-center text-slate-400">Loading drill-down details...</div>
+          </div>
+
+          <!-- Pagination Bar -->
+          <div class="flex items-center justify-between border-t border-white/5 pt-4">
+            <span class="text-xs text-slate-400" id="tablePaginationInfo">Showing 0-0 of 0 entries</span>
+            <div class="flex items-center gap-2">
+              <button id="btnPrevPage" class="px-3 py-1.5 rounded-lg border border-white/5 text-xs font-bold text-slate-300 hover:bg-white/5 disabled:opacity-50 disabled:hover:bg-transparent transition-all">Previous</button>
+              <button id="btnNextPage" class="px-3 py-1.5 rounded-lg border border-white/5 text-xs font-bold text-slate-300 hover:bg-white/5 disabled:opacity-50 disabled:hover:bg-transparent transition-all">Next</button>
+            </div>
+          </div>
+
+        </div>
+
+      </div> <!-- End forecastTab -->
+
+
+      <!-- 3. SCENARIO / SIMULATION PANEL -->
+      <div id="scenarioTab" class="tab-pane flex flex-col gap-8">
+        <div>
+          <h1 class="text-2xl font-black text-slate-100">Scenario Simulations</h1>
+          <p class="text-xs text-slate-400">Adjust budgets and compute alternative Monte Carlo results</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          <!-- Column Left: Simulation controllers form -->
+          <div class="lg:col-span-4 glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-6 shadow-xl">
+            <div class="flex items-center gap-2">
+              <i data-lucide="sliders" class="w-5 h-5 text-brand-purple"></i>
+              <h2 class="font-extrabold text-sm text-slate-200">Adjust Allocations</h2>
+            </div>
+
+            <div class="flex flex-col gap-4">
+              
+              <!-- Google input -->
+              <div class="flex flex-col gap-1.5">
+                <label for="googleBudgetVal" class="text-xs font-bold text-slate-400">Google Ads Budget</label>
+                <div class="relative">
+                  <span class="absolute left-3.5 top-2 text-xs font-bold text-slate-500">₹</span>
+                  <input type="number" id="googleBudgetVal" class="w-full bg-white/5 border border-white/5 rounded-lg pl-8 pr-4 py-2 text-xs text-white outline-none focus:border-brand-blue/30 transition-all" value="15000">
+                </div>
+              </div>
+
+              <!-- Meta input -->
+              <div class="flex flex-col gap-1.5">
+                <label for="metaBudgetVal" class="text-xs font-bold text-slate-400">Meta Ads Budget</label>
+                <div class="relative">
+                  <span class="absolute left-3.5 top-2 text-xs font-bold text-slate-500">₹</span>
+                  <input type="number" id="metaBudgetVal" class="w-full bg-white/5 border border-white/5 rounded-lg pl-8 pr-4 py-2 text-xs text-white outline-none focus:border-brand-blue/30 transition-all" value="12000">
+                </div>
+              </div>
+
+              <!-- MS input -->
+              <div class="flex flex-col gap-1.5">
+                <label for="msBudgetVal" class="text-xs font-bold text-slate-400">Microsoft Ads Budget</label>
+                <div class="relative">
+                  <span class="absolute left-3.5 top-2 text-xs font-bold text-slate-500">₹</span>
+                  <input type="number" id="msBudgetVal" class="w-full bg-white/5 border border-white/5 rounded-lg pl-8 pr-4 py-2 text-xs text-white outline-none focus:border-brand-blue/30 transition-all" value="2000">
+                </div>
+              </div>
+
+              <!-- Seasonality slider -->
+              <div class="flex flex-col gap-1.5">
+                <div class="flex items-center justify-between text-xs font-bold text-slate-400">
+                  <label for="seasonalitySlider">Seasonality Multiplier</label>
+                  <span id="seasonalityTextVal" class="text-brand-purple font-black">1.0x</span>
+                </div>
+                <input type="range" id="seasonalitySlider" min="0.5" max="2.0" step="0.1" value="1.0" class="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand-purple transition-all">
+              </div>
+
+              <!-- Confidence Selection -->
+              <div class="flex flex-col gap-1.5">
+                <label for="confidenceSelect" class="text-xs font-bold text-slate-400">Confidence Band</label>
+                <select id="confidenceSelect" class="bg-white/5 border border-white/5 rounded-lg px-3 py-2 text-xs text-slate-300 outline-none hover:bg-white/10 focus:border-brand-blue/30 transition-all cursor-pointer">
+                  <option value="80" selected>80% Confidence Interval</option>
+                  <option value="90">90% Confidence Interval</option>
+                  <option value="95">95% Confidence Interval</option>
+                </select>
+              </div>
+
+              <!-- Primary action button -->
+              <button id="runForecastBtn" class="w-full mt-4 py-3 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-brand-blue to-brand-purple hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-blue/20">
+                <i data-lucide="play" class="w-4 h-4"></i> Run Forecasting Model
+              </button>
+
+            </div>
+          </div>
+
+          <!-- Column Right: Large dynamic results display -->
+          <div class="lg:col-span-8 flex flex-col gap-8">
+            <div class="glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-6 shadow-xl">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="line-chart" class="w-5 h-5 text-brand-blue"></i>
+                  <h2 class="font-extrabold text-sm text-slate-200">Simulation Projections</h2>
+                </div>
+                <button onclick="document.getElementById('navOverview').click()" class="text-xs font-bold text-brand-purple hover:underline bg-transparent border-none">
+                  Overview Dashboard
+                </button>
+              </div>
+
+              <div class="h-[360px] w-full flex items-center justify-center border border-white/5 rounded-xl bg-slate-950/20 p-4">
+                <p class="text-slate-500 text-xs">Execute simulations to generate dynamic timeline projections.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div> <!-- End scenarioTab -->
+
+
+      <!-- 4. REPORTS TAB PANEL -->
+      <div id="reportsTab" class="tab-pane flex flex-col gap-10">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-black text-slate-100">Growth Advisor Reports</h1>
+            <p id="reportDateText" class="text-xs text-slate-400">Generated: July 10, 2026</p>
+          </div>
+          
+          <button id="exportReportCsvBtn" class="px-5 py-2.5 rounded-xl text-xs font-extrabold text-white bg-brand-blue hover:bg-brand-blue-hover hover:shadow-lg hover:shadow-brand-blue/15 transition-all flex items-center gap-2">
+            <i data-lucide="download" class="w-4 h-4"></i> Export Predictions CSV
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          <!-- Column Left: Detailed accordion sections of insights -->
+          <div class="lg:col-span-7 flex flex-col gap-6">
+            <div class="glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-6 shadow-xl">
+              <div class="flex items-center gap-2 pb-2 border-b border-white/5">
+                <i data-lucide="sparkles" class="w-5 h-5 text-brand-cyan"></i>
+                <h2 class="font-extrabold text-base text-slate-200">Detailed AI Analysis</h2>
+              </div>
+
+              <!-- Accordions are populated here dynamically -->
+              <div id="aiInsightsAccordionContainer" class="flex flex-col gap-3">
+                <div class="py-8 text-center text-slate-500 text-xs">Insights will be computed when forecasting starts.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Column Right: Raw markdown outputs fallback -->
+          <div class="lg:col-span-5 glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-6 shadow-xl">
+            <div class="flex items-center gap-2 pb-2 border-b border-white/5">
+              <i data-lucide="file-text" class="w-5 h-5 text-brand-purple"></i>
+              <h2 class="font-extrabold text-base text-slate-200">Performance Summary</h2>
+            </div>
+
+            <!-- Tabular breakdown summary -->
+            <div class="overflow-x-auto rounded-xl border border-white/5">
+              <table class="min-w-full divide-y divide-white/5 text-xs text-left">
+                <thead class="bg-white/5 font-bold text-slate-400 uppercase">
+                  <tr>
+                    <th scope="col" class="px-4 py-3">Segment</th>
+                    <th scope="col" class="px-4 py-3">Spend</th>
+                    <th scope="col" class="px-4 py-3">ROAS</th>
+                    <th scope="col" class="px-4 py-3">Expected Rev</th>
+                  </tr>
+                </thead>
+                <tbody id="reportMetricsTableBody" class="divide-y divide-white/5">
+                  <tr><td colspan="4" class="px-4 py-6 text-center text-slate-500">Run forecast models first.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Detailed raw panel -->
+            <div class="ai-report-box bg-slate-950/30 border border-white/5 rounded-xl p-4 min-h-[140px] text-xs max-h-[300px] overflow-y-auto" id="aiDetailedReportContent">
+              Full causal advice report text will appear here.
+            </div>
+          </div>
+
+        </div>
+      </div> <!-- End reportsTab -->
+
+
+      <!-- 5. INGESTION DIAGNOSTICS TAB PANEL -->
+      <div id="diagnosticsTab" class="tab-pane flex flex-col gap-8">
+        <div>
+          <h1 class="text-2xl font-black text-slate-100">Data Sources & Diagnostics</h1>
+          <p class="text-xs text-slate-400">Verify historical data integrity and anomalies</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          <!-- Left: Upload Integrity Summary card -->
+          <div class="lg:col-span-5 glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-6 shadow-xl relative">
+            <div class="flex items-center gap-2 pb-2 border-b border-white/5">
+              <i data-lucide="shield-check" class="w-5 h-5 text-brand-blue"></i>
+              <h2 class="font-extrabold text-base text-slate-200">File Integrity Overview</h2>
+            </div>
+
+            <!-- Integrity outputs -->
+            <div id="diagnosticIntegritySummary" class="text-xs">
+              <p class="text-slate-500 py-6 text-center">Please upload or load a dataset to run diagnostics.</p>
+            </div>
+          </div>
+
+          <!-- Right: Detailed Anomaly alerts list -->
+          <div class="lg:col-span-7 glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-6 shadow-xl">
+            <div class="flex items-center justify-between pb-2 border-b border-white/5">
+              <div class="flex items-center gap-2">
+                <i data-lucide="alert-triangle" class="w-5 h-5 text-brand-purple"></i>
+                <h2 class="font-extrabold text-base text-slate-200">Anomaly Detections</h2>
+              </div>
+              <span class="text-[10px] font-bold text-slate-400 bg-white/5 px-2 py-0.5 rounded-full uppercase">Real-time alerts</span>
+            </div>
+
+            <div id="anomaliesListContainer" class="flex flex-col gap-3 min-h-[160px]">
+              <p class="text-slate-500 py-10 text-center text-xs">No active anomalies computed yet.</p>
+            </div>
+          </div>
+
+        </div>
+      </div> <!-- End diagnosticsTab -->
+
+
+      <!-- 6. SETTINGS TAB PANEL -->
+      <div id="settingsTab" class="tab-pane flex flex-col gap-8 max-w-xl mx-auto w-full">
+        <div>
+          <h1 class="text-2xl font-black text-slate-100">System Configurations</h1>
+          <p class="text-xs text-slate-400">Configure credentials and control background engines</p>
+        </div>
+
+        <div class="glass-panel border border-white/5 rounded-2xl p-6 flex flex-col gap-6 shadow-xl">
+          <div class="flex items-center gap-2 pb-2 border-b border-white/5">
+            <i data-lucide="settings" class="w-5 h-5 text-brand-blue"></i>
+            <h2 class="font-extrabold text-sm text-slate-200">Configurations</h2>
+          </div>
+
+          <div class="flex flex-col gap-6">
+            
+            <!-- Gemini API Key input -->
+            <div class="flex flex-col gap-2">
+              <label for="geminiApiKeyVal" class="text-xs font-bold text-slate-300">Gemini API Key</label>
+              <input type="password" id="geminiApiKeyVal" placeholder="Enter API key for advanced Causal AI reports..." autocomplete="new-password" aria-hidden="true" class="w-full bg-white/5 border border-white/5 rounded-lg px-4 py-2.5 text-xs text-white outline-none focus:border-brand-blue/30 transition-all">
+              <p class="text-[11px] text-slate-500 leading-normal">Your key is stored securely in your local browser storage and is used solely for client-side consulting queries to Gemini models.</p>
+            </div>
+
+            <div class="h-[1px] bg-white/5"></div>
+
+            <!-- Trigger Rebuilding XGBoost Model -->
+            <div class="flex flex-col gap-3">
+              <h3 class="font-bold text-xs text-slate-300">Manual Rebuilding / Retraining</h3>
+              <p class="text-[11px] text-slate-500 leading-normal">Triggers an end-to-end Python FastAPI rebuild of the XGBoost regression model utilizing your loaded campaigns data.pkl file.</p>
+              
+              <button id="triggerTrainBtn" class="py-3 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-brand-blue to-brand-purple hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-blue/20 max-w-[240px]">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i> Retrain XGBoost Pipeline
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div> <!-- End settingsTab -->
+
+    </div> <!-- End dashboardViews -->
+
+  </main>
+
+  <!-- Settings Modal Overlay -->
+  <div id="settingsModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/80 backdrop-blur-md transition-opacity duration-300">
+    <div class="glass-panel border border-white/10 rounded-2xl p-8 max-w-lg w-full shadow-2xl relative flex flex-col gap-6 scale-95 transition-transform duration-300">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-white/5">
+        <div class="flex items-center gap-2">
+          <i data-lucide="settings" class="w-5 h-5 text-brand-blue"></i>
+          <h2 class="text-lg font-extrabold text-slate-200">System Settings</h2>
+        </div>
+        <button id="closeSettingsBtn" class="w-6 h-6 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 transition-all">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Scrollable Content -->
+      <div class="flex flex-col gap-5 max-h-[60vh] overflow-y-auto pr-2">
+        <!-- Theme Selection -->
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs font-bold text-slate-300">Theme</span>
+            <span class="text-[10px] text-slate-500">Choose appearance style</span>
+          </div>
+          <select id="settingsTheme" class="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-brand-blue/30 w-36">
+            <option value="dark">Dark Theme</option>
+            <option value="light">Light Theme</option>
+          </select>
+        </div>
+
+        <!-- Animation Toggle -->
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs font-bold text-slate-300">Animations & Effects</span>
+            <span class="text-[10px] text-slate-500">Enable particles & transitions</span>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="settingsAnimations" class="sr-only peer" checked>
+            <span class="block w-9 h-5 bg-white/5 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-blue peer-checked:after:bg-white"></span>
+          </label>
+        </div>
+
+        <!-- Forecast Defaults -->
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs font-bold text-slate-300">Default Horizon</span>
+            <span class="text-[10px] text-slate-500">Initial planning period days</span>
+          </div>
+          <select id="settingsDefaultHorizon" class="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-brand-blue/30 w-36">
+            <option value="30">30 Days</option>
+            <option value="60">60 Days</option>
+            <option value="90">90 Days</option>
+          </select>
+        </div>
+
+        <!-- Confidence Interval -->
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs font-bold text-slate-300">Confidence Band</span>
+            <span class="text-[10px] text-slate-500">Statistical uncertainty limits</span>
+          </div>
+          <select id="settingsConfidence" class="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-brand-blue/30 w-36">
+            <option value="80">80% CI (P10 - P90)</option>
+            <option value="90">90% CI (P05 - P95)</option>
+            <option value="95">95% CI (P2.5 - P97.5)</option>
+          </select>
+        </div>
+
+        <!-- Currency Selector -->
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs font-bold text-slate-300">Currency</span>
+            <span class="text-[10px] text-slate-500">Localize metric symbols</span>
+          </div>
+          <select id="settingsCurrency" class="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-brand-blue/30 w-36">
+            <option value="INR">Rupee (₹)</option>
+            <option value="USD">Dollar ($)</option>
+            <option value="EUR">Euro (€)</option>
+            <option value="GBP">Pound (£)</option>
+          </select>
+        </div>
+
+        <!-- Language Selector -->
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs font-bold text-slate-300">Language</span>
+            <span class="text-[10px] text-slate-500">Choose display locale</span>
+          </div>
+          <select id="settingsLanguage" class="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-brand-blue/30 w-36">
+            <option value="EN">English</option>
+            <option value="HI">Hindi</option>
+            <option value="ES">Spanish</option>
+            <option value="DE">German</option>
+            <option value="FR">French</option>
+          </select>
+        </div>
+
+        <!-- Export Format -->
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs font-bold text-slate-300">Export Format</span>
+            <span class="text-[10px] text-slate-500">Tabular download file type</span>
+          </div>
+          <select id="settingsExportFormat" class="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-brand-blue/30 w-36">
+            <option value="CSV">CSV Format</option>
+            <option value="JSON">JSON Data</option>
+          </select>
+        </div>
+
+        <div class="h-[1px] bg-white/5"></div>
+
+        <!-- Gemini API Key configuration inside settings -->
+        <div class="flex flex-col gap-2">
+          <label for="settingsApiKey" class="text-xs font-bold text-slate-300">Gemini API Key</label>
+          <input type="password" id="settingsApiKey" placeholder="Enter API key for advanced reports..." autocomplete="new-password" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-xs text-white outline-none focus:border-brand-blue/30">
+        </div>
+
+        <div class="h-[1px] bg-white/5"></div>
+
+        <!-- About section -->
+        <div class="flex flex-col gap-1">
+          <span class="text-xs font-bold text-slate-300">About RevenuePilot</span>
+          <span class="text-[10px] text-slate-500 leading-normal">Version 4.5 (Enterprise SaaS Control Center Edition). Powered by XGBoost, FastAPI, and Monte Carlo predictive modeling.</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center justify-between pt-3 border-t border-white/5">
+        <button id="resetSettingsBtn" class="px-4 py-2 rounded-xl text-xs font-bold text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all">
+          Reset Settings
+        </button>
+        <button id="saveSettingsBtn" class="px-5 py-2 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-brand-blue to-brand-purple hover:brightness-110 active:scale-[0.99] transition-all shadow-lg shadow-brand-blue/20">
+          Save Settings
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reusable Glassmorphic Confirmation Modal -->
+  <div id="confirmModal" class="fixed inset-0 z-[200] hidden items-center justify-center bg-slate-950/70 backdrop-blur-sm transition-opacity duration-300">
+    <div class="glass-panel border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative flex flex-col gap-5 scale-95 transition-transform duration-300">
+      <div class="flex items-center gap-2 pb-2 border-b border-white/5">
+        <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-500"></i>
+        <h2 class="font-extrabold text-sm text-slate-200" id="confirmTitle">Confirm Action</h2>
+      </div>
+      <p class="text-xs text-slate-400 leading-normal" id="confirmMessage">Are you sure you want to proceed?</p>
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <button id="confirmCancelBtn" class="px-4 py-1.5 rounded-lg text-xs font-bold text-slate-400 bg-white/5 hover:bg-white/10 transition-all">Cancel</button>
+        <button id="confirmOkBtn" class="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition-all shadow-lg">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reusable Toast Container -->
+  <div id="toastContainer" class="fixed top-6 right-6 z-[99999] flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+
+  <!-- Custom Core Javascript Files -->
+  <script src="dataset.js"></script>
+  <script src="validator.js"></script>
+  <script src="forecaster.js"></script>
+  <script src="ai.js"></script>
+  <script src="app.js"></script>
+
+  <!-- redsign-specific extra animations helper -->
+  <script>
+    // Particle Canvas overlay implementation
+    function initParticles(canvasId) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let particles = [];
+      const count = 45;
+      
+      const resize = () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      };
+      window.addEventListener('resize', resize);
+      resize();
+      
+      class Particle {
+        constructor() {
+          this.reset();
+          this.y = Math.random() * canvas.height;
+        }
+        reset() {
+          this.x = Math.random() * canvas.width;
+          this.y = canvas.height + 10;
+          this.r = Math.random() * 1.5 + 0.5;
+          this.vx = (Math.random() - 0.5) * 0.15;
+          this.vy = -(Math.random() * 0.3 + 0.1);
+          this.alpha = Math.random() * 0.4 + 0.1;
+        }
+        update() {
+          this.x += this.vx;
+          this.y += this.vy;
+          if (this.y < -10 || this.x < -10 || this.x > canvas.width + 10) {
+            this.reset();
+          }
+        }
+        draw() {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(99, 102, 241, ${this.alpha})`;
+          ctx.fill();
+        }
+      }
+      
+      for (let i = 0; i < count; i++) {
+        particles.push(new Particle());
+      }
+      
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < particles.length; i++) {
+          particles[i].update();
+          particles[i].draw();
+        }
+        requestAnimationFrame(animate);
+      }
+      animate();
+    }
+
+    // Dynamic Meteor generator
+    function initMeteors(containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      const meteorCount = 10;
+      
+      for (let i = 0; i < meteorCount; i++) {
+        const meteor = document.createElement('div');
+        meteor.className = 'meteor-item';
+        
+        // Random layout coordinates
+        const delay = Math.random() * 12;
+        const speed = Math.random() * 4 + 4;
+        const top = Math.random() * 50 - 10;
+        const left = Math.random() * 80 + 20;
+        
+        meteor.style.setProperty('--meteor-top', top + '%');
+        meteor.style.setProperty('--meteor-left', left + '%');
+        meteor.style.setProperty('--meteor-speed', speed + 's');
+        meteor.style.animationDelay = delay + 's';
+        
+        container.appendChild(meteor);
+      }
+    }
+
+    // Mutation Observer based Number Tickers
+    function setupNumberTickers() {
+      const targets = [
+        { id: 'statTotalSpend', prefix: '₹', suffix: '' },
+        { id: 'statExpectedRevenue', prefix: '₹', suffix: '' },
+        { id: 'statExpectedRoas', prefix: '', suffix: 'x' },
+        { id: 'statSeasonality', prefix: '', suffix: 'x' }
+      ];
+
+      targets.forEach(({ id, prefix, suffix }) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+
+        let lastValue = 0;
+
+        const observer = new MutationObserver((mutations) => {
+          observer.disconnect();
+
+          const text = el.textContent;
+          const numStr = text.replace(/[^0-9.]/g, '');
+          const newValue = parseFloat(numStr) || 0;
+
+          if (newValue !== lastValue) {
+            animateTicker(el, lastValue, newValue, 800, prefix, suffix);
+            lastValue = newValue;
+          } else {
+            observer.observe(el, { childList: true });
+          }
+        });
+
+        observer.observe(el, { childList: true });
+
+        function animateTicker(element, start, end, duration, pref, suff) {
+          const startTime = performance.now();
+          const isFloat = id.includes('Roas') || id.includes('Seasonality');
+
+          function update(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Easing: easeOutQuad/Cubic
+            const ease = 1 - Math.pow(1 - progress, 3);
+            const currentVal = start + (end - start) * ease;
+
+            if (isFloat) {
+              element.textContent = pref + currentVal.toFixed(2) + suff;
+            } else {
+              element.textContent = pref + Math.round(currentVal).toLocaleString() + suff;
+            }
+
+            if (progress < 1) {
+              requestAnimationFrame(update);
+            } else {
+              if (isFloat) {
+                element.textContent = pref + end.toFixed(2) + suff;
+              } else {
+                element.textContent = pref + Math.round(end).toLocaleString() + suff;
+              }
+              observer.observe(element, { childList: true });
+            }
+          }
+
+          requestAnimationFrame(update);
+        }
+      });
+    }
+
+    // Launch animations on load
+    document.addEventListener('DOMContentLoaded', () => {
+      initParticles('particlesCanvas');
+      initMeteors('meteorsContainer');
+      setupNumberTickers();
+      
+      // Sync visual toggles for planningPeriodSelect
+      const horizonBtns = document.querySelectorAll('#planningPeriodToggle .horizon-btn');
+      horizonBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const val = e.currentTarget.getAttribute('data-value');
+          const select = document.getElementById('planningPeriodSelect');
+          if (select) {
+            select.value = val;
+            select.dispatchEvent(new Event('change'));
+          }
+        });
+      });
+      
+      // Auto compile initial icons
+      setTimeout(() => {
+        if (window.lucide) {
+          lucide.createIcons();
+        }
+      }, 50);
+    });
+  </script>
+</body>
+</html>

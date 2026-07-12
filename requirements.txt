@@ -1,0 +1,26 @@
+# Data manipulation, feature engineering, and ingestion
+pandas==3.0.3
+
+# Linear algebra, mathematical operations, and Monte Carlo noise simulations
+numpy==2.5.0
+
+# Regressor evaluation metrics (MAE, RMSE, R2)
+scikit-learn==1.9.0
+
+# Core prediction engine using gradient-boosted decision trees
+xgboost==3.3.0
+
+# Outgoing HTTP request layer for Gemini API consultation
+requests==2.34.2
+
+# Unified REST API service layer for the application
+fastapi==0.138.0
+
+# High-performance ASGI server for hosting FastAPI
+uvicorn==0.49.0
+
+# Multi-part form parsing for historical CSV file uploads
+python-multipart==0.0.32
+
+# Request/Response schemas and data validation configurations
+pydantic==2.13.4
