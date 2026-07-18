@@ -144,17 +144,17 @@ def run_recursive_forecasting(combined_df, test_dates, model_package, monthly_ma
 
     # Fast recursive daily loop in NumPy
     for t in range(history_days, total_days):
-        spend_lag_1 = spend_arr[:, t - 1]
-        spend_lag_7 = spend_arr[:, t - 7]
-        revenue_lag_1 = revenue_arr[:, t - 1].copy()
-        revenue_lag_7 = revenue_arr[:, t - 7].copy()
+        spend_lag_1 = spend_arr[:, max(0, t - 1)]
+        spend_lag_7 = spend_arr[:, max(0, t - 7)]
+        revenue_lag_1 = revenue_arr[:, max(0, t - 1)].copy()
+        revenue_lag_7 = revenue_arr[:, max(0, t - 7)].copy()
         
-        spend_roll_mean_7 = np.mean(spend_arr[:, t - 7 : t], axis=1)
-        spend_roll_mean_30 = np.mean(spend_arr[:, t - 30 : t], axis=1)
-        revenue_roll_mean_7 = np.mean(revenue_arr[:, t - 7 : t], axis=1)
-        revenue_roll_mean_30 = np.mean(revenue_arr[:, t - 30 : t], axis=1)
-        clicks_roll_mean_30 = np.mean(clicks_arr[:, t - 30 : t], axis=1)
-        conversions_roll_mean_30 = np.mean(conversions_arr[:, t - 30 : t], axis=1)
+        spend_roll_mean_7 = np.mean(spend_arr[:, max(0, t - 7) : t], axis=1)
+        spend_roll_mean_30 = np.mean(spend_arr[:, max(0, t - 30) : t], axis=1)
+        revenue_roll_mean_7 = np.mean(revenue_arr[:, max(0, t - 7) : t], axis=1)
+        revenue_roll_mean_30 = np.mean(revenue_arr[:, max(0, t - 30) : t], axis=1)
+        clicks_roll_mean_30 = np.mean(clicks_arr[:, max(0, t - 30) : t], axis=1)
+        conversions_roll_mean_30 = np.mean(conversions_arr[:, max(0, t - 30) : t], axis=1)
         
         # Check and fill NaNs (safeguard)
         for c_idx, campaign in enumerate(campaigns):
@@ -263,6 +263,10 @@ def run_predictions_and_monte_carlo(test_df, model_package, monthly_map, weekly_
     test_df['revenue'] = np.nan
     test_df['clicks'] = 0.0
     test_df['conversions'] = 0.0
+    
+    # Filter out overlapping historical dates to avoid duplicate rows
+    min_test_date = test_df['date'].min()
+    history_df = history_df[history_df['date'] < min_test_date]
     
     # Combine history + test
     combined_df = pd.concat([history_df, test_df], ignore_index=True)
